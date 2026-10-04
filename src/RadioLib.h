@@ -8,6 +8,7 @@
 
   \par Currently Supported Wireless Modules and Protocols
   - CC1101 FSK module
+  - FH101RF module
   - LLCC68 LoRa/FSK module
   - LR11x0 LoRa/FSK/LR-FHSS module
   - nRF24 FSK module
@@ -80,6 +81,7 @@
 #endif
 
 #include "modules/CC1101/CC1101.h"
+#include "modules/FH101RF/FH101RF.h"
 #include "modules/LLCC68/LLCC68.h"
 #include "modules/LR11x0/LR1110.h"
 #include "modules/LR11x0/LR1120.h"
