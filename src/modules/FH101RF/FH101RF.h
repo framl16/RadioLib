@@ -55,6 +55,14 @@
 #define RADIOLIB_FH101RF_REG_N_SPG_TARGET                 0x09
 #define RADIOLIB_FH101RF_REG_D_CORNER_CTRL                0x23
 #define RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL             0x24
+#define RADIOLIB_FH101RF_REG_IRQ_SELECT                   0x31
+#define RADIOLIB_FH101RF_REG_IRQ_STATUS                   0x32
+#define RADIOLIB_FH101RF_REG_IRQ_CLR                      0x33
+#define RADIOLIB_FH101RF_REG_ID_HI                        0x35
+#define RADIOLIB_FH101RF_REG_ID_LO                        0x36
+#define RADIOLIB_FH101RF_REG_IDM_CTRL                     0x38
+#define RADIOLIB_FH101RF_REG_IDM_BAND                     0x3A
+#define RADIOLIB_FH101RF_REG_IDM_REASON                   0x3B
 #define RADIOLIB_FH101RF_REG_LC_TG_ENA                    0x76
 #define RADIOLIB_FH101RF_REG_XTAL_GOOD                    0x77
 #define RADIOLIB_FH101RF_REG_COMP_THRESH_W                0x78
@@ -77,13 +85,41 @@
 #define RADIOLIB_FH101RF_SAMPLE_RATE_512                  0b00000110  //  2     0                  512 Hz,                          62.500 ms
 #define RADIOLIB_FH101RF_SAMPLE_RATE_256                  0b00000111  //  2     0                  256 Hz,                         125.000 ms, slowest
 
-// RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL                                MSB   LSB     DESCRIPTION
-#define RADIOLIB_FH101RF_BRANCH_WEAK_MASK                 0b00000001  //  0     0     Mask for weak branch
-#define RADIOLIB_FH101RF_BRANCH_MEDIUM_MASK               0b00000010  //  1     1     Mask for medium branch
-#define RADIOLIB_FH101RF_BRANCH_STRONG_MASK               0b00000100  //  2     2     Mask for strong branch
-#define RADIOLIB_FH101RF_BAND_433_MASK                    0b00010000  //  4     4     Mask for the 433 MHz band
-#define RADIOLIB_FH101RF_BAND_868_MASK                    0b00100000  //  5     5     Mask for the 868 MHz band
-#define RADIOLIB_FH101RF_BAND_2G4_MASK                    0b01000000  //  6     6     Mask for the 2G4 MHz band
+// RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL                                MSB   LSB   DESCRIPTION
+#define RADIOLIB_FH101RF_BRANCH_WEAK_MASK                 0b00000001  //  0     0   Mask for weak branch
+#define RADIOLIB_FH101RF_BRANCH_MEDIUM_MASK               0b00000010  //  1     1   Mask for medium branch
+#define RADIOLIB_FH101RF_BRANCH_STRONG_MASK               0b00000100  //  2     2   Mask for strong branch
+#define RADIOLIB_FH101RF_BAND_433_MASK                    0b00010000  //  4     4   Mask for the 433 MHz band
+#define RADIOLIB_FH101RF_BAND_868_MASK                    0b00100000  //  5     5   Mask for the 868 MHz band
+#define RADIOLIB_FH101RF_BAND_2G4_MASK                    0b01000000  //  6     6   Mask for the 2G4 MHz band
+
+// RADIOLIB_FH101RF_REG_IRQ_SELECT
+#define RADIOLIB_FH101RF_IRQ_TYPE_ID_MATCH                0b00000001  //  0     0   16-bit ID fits to received FDD
+#define RADIOLIB_FH101RF_IRQ_TYPE_FIFO_OVERFLOW           0b00000010  //  1     1   FIFO buffer is overflowed   
+#define RADIOLIB_FH101RF_IRQ_TYPE_FIFO_BUFFER_FILLED      0b00000100  //  2     2   FIFO buffer is filled
+#define RADIOLIB_FH101RF_IRQ_TYPE_CORR_PATTERN_MATCH      0b00001000  //  3     3   OOK data matches the selected correlation sequences (does not depend on FDD or LDR mode being active)
+#define RADIOLIB_FH101RF_IRQ_TYPE_ID_MATCH_AND_FIFO       0b00010000  //  4     4   Type 0 occured within last (FIFO_LENGTH+2) bit cycles and Type 2 occured after Type 0
+#define RADIOLIB_FH101RF_IRQ_TYPE_ID_MATCH_AND_LDR        0b00100000  //  5     5   Type 0 occured within current FDD data reception and transition from HDR to LDR sampling mode occured after Type 0
+#define RADIOLIB_FH101RF_IRQ_TYPE_RTC_TIMER_ALARM         0b01000000  //  6     6   One RTC timer reached the user-defined target and caused alarm
+#define RADIOLIB_FH101RF_IRQ_TYPE_CYCLIC_TIMER_ALARM      0b10000000  //  7     7   Cyclic timer reached user-defined target and caused alarm  
+
+// RADIOLIB_FH101RF_REG_IDM_CTRL
+#define RADIOLIB_FH101RF_ID_MATCH_INDIVIDUAL_ONLY         0b00000000  //  1     0   Only individual 16 bit ID
+#define RADIOLIB_FH101RF_ID_MATCH_INDIVIDUAL_AND_GROUP    0b00000001  //  1     0   Individual 16 bit ID or groupwise ID
+#define RADIOLIB_FH101RF_ID_MATCH_BROADCAST_ONLY          0b00000010  //  1     0   Only broadcast ID
+#define RADIOLIB_FH101RF_ID_MATCH_ALL                     0b00000011  //  1     0   Individual 16 bit ID, groupwise ID oder broadcast ID
+
+// RADIOLIB_FH101RF_REG_IDM_BAND
+#define RADIOLIB_FH101RF_IDM_BAND_433                     0b00000000  //  2     0   ID match was triggered on 433 MHz band
+#define RADIOLIB_FH101RF_IDM_BAND_868                     0b00000001  //  2     0   ID match was triggered on 868 MHz band
+#define RADIOLIB_FH101RF_IDM_BAND_2G4                     0b00000010  //  2     0   ID match was triggered on 2400 MHz band
+#define RADIOLIB_FH101RF_IDM_BAND_NONE                    0b00000011  //  2     0   ID match has not been triggered yet
+
+// RADIOLIB_FH101RF_REG_IDM_REASON
+#define RADIOLIB_FH101RF_IDM_REASON_NONE                  0b00000000  //  2     0   ID match has not been triggered yet
+#define RADIOLIB_FH101RF_IDM_REASON_INDIVIDUAL_ID         0b00000001  //  2     0   Individual ID
+#define RADIOLIB_FH101RF_IDM_REASON_GROUP_ID              0b00000010  //  2     0   Group ID
+#define RADIOLIB_FH101RF_IDM_REASON_BROADCAST_ID          0b00000011  //  2     0   Broadcast ID
 
 // RADIOLIB_FH101RF_REG_VERSION
 #define RADIOLIB_FH101RF_VERSION_CURRENT                  0x41
@@ -159,9 +195,66 @@ class FH101RF {
     */
     int16_t calibrate();
 
+    /*!
+      \brief Sets the state of the individual bands.
+      \param band433 Whether the 433 MHz band should be active or not.
+      \param band868 Whether the 868 MHz band should be active or not.
+      \param band2G4 Whether the 2.4 GHz band should be active or not.
+      \returns \ref status_codes  
+    */
     int16_t setActiveBands(bool band433, bool band868, bool band2G4);
+
+    /*!
+      \brief Sets the state of the individual branches.
+      \param branchWeak Whether the weak branch should be active or not.
+      \param branchMedium Whether the medium branch should be active or not.
+      \param branchStrong Whether the strong branch should be active or not.
+      \returns \ref status_codes  
+    */
     int16_t setActiveBranches(bool branchWeak, bool branchMedium, bool branchStrong);
+
+
+    /*!
+      \brief Sets the sample rates of the LDR and HDR modes.
+      \param srPreamble The sample rate of the LDR mode (preamble).
+      \param srFastRx The sample rate of the HDR mode (fast RX).
+      \returns \ref status_codes  
+    */
     int16_t setSampleRate(uint8_t srPreamble, uint8_t srFastRx);
+
+    /*!
+      \brief Sets the IRQ mode.
+      \param mode Bit mask for IRQ mode.
+      \returns \ref status_codes  
+    */
+    int16_t setIrqMode(uint8_t mode);
+
+    /*!
+      \brief Gets the current IRQ status.
+      \returns \ref IRQ status or \ref status_codes
+    */
+    int16_t getIrqStatus();
+
+    /*!
+      \brief Resets the IRQ status.
+      \param mode Bit mask for IRQ mode(s) to be reset.
+      \returns \ref status_codes
+    */
+    int16_t resetIrqStatus(uint8_t mode);
+
+    /*!
+      \brief Selects the ID match mode for creating the wake-up signal.
+      \param mode ID match mode
+      \returns \ref status_codes  
+    */
+    int16_t setIdMatchMode(uint8_t mode);
+
+    /*!
+      \brief Sets the individual ID of the receiver.
+      \param id The ID of the receiver.
+      \returns status_codes
+    */
+    int16_t setReceiverId(uint16_t id);
 
 #if !defined(RADIOLIB_GODMODE)
   private:

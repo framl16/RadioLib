@@ -762,6 +762,11 @@
 #define RADIOLIB_ERR_CALIBRATION_TIMEOUT                        (-1602)
 
 /*!
+  \brief The supplied ID match mode does not exist.
+*/
+#define RADIOLIB_ERR_INVALID_ID_MATCH_MODE                      (-1603)
+
+/*!
   \}
 */
 

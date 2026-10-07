@@ -37,6 +37,9 @@ void setup() {
   
   state = radio.setActiveBands(false, true, false);
   state = radio.setActiveBranches(true, true, true);
+  state = radio.setReceiverId(0x1989);
+  state = radio.setIdMatchMode(RADIOLIB_FH101RF_ID_MATCH_INDIVIDUAL_ONLY);
+  state = radio.setIrqMode(RADIOLIB_FH101RF_IRQ_TYPE_ID_MATCH);
 
   if (state == RADIOLIB_ERR_NONE) {
     Serial.println("success!");

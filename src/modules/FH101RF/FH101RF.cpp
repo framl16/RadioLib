@@ -95,6 +95,19 @@ int16_t FH101RF::setLcTgEna(uint8_t value) {
   return(_mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_LC_TG_ENA, value));
 }
 
+int16_t FH101RF::calibrate() {
+  int16_t state = calibrateLocalOscillator();
+  RADIOLIB_ASSERT(state);
+
+  state = calibrateSamplePulse();
+  RADIOLIB_ASSERT(state);
+
+  state = calibrateComparator();
+  RADIOLIB_ASSERT(state);
+
+  return(RADIOLIB_ERR_NONE);
+}
+
 int16_t FH101RF::setActiveBands(bool band433, bool band868, bool band2G4) {
   int16_t current = _mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL);
   if (current < 0) {
@@ -166,17 +179,40 @@ int16_t FH101RF::setSampleRate(uint8_t srPreamble, uint8_t srFastRx) {
   return(state);
 }
 
-int16_t FH101RF::calibrate() {
-  int16_t state = calibrateLocalOscillator();
+int16_t FH101RF::setIrqMode(uint8_t mode) {
+  return(_mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_IRQ_SELECT, mode));
+}
+
+int16_t FH101RF::getIrqStatus() {
+  return(_mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_IRQ_STATUS));
+}
+
+int16_t FH101RF::resetIrqStatus(uint8_t mode) {
+  // Apprarently, this register is not cleared automatically by the chip once the
+  // reset has been applied. Because of this, the previous value is remembered
+  // and written back into the register
+  uint8_t prev = _mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_IRQ_CLR);
+
+  int16_t state = _mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_IRQ_CLR, mode);
+  state |= _mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_IRQ_CLR, prev);
+
+  return(state);
+}
+
+int16_t FH101RF::setIdMatchMode(uint8_t mode) {
+  RADIOLIB_CHECK_RANGE(mode, 0b00, 0b11, RADIOLIB_ERR_INVALID_ID_MATCH_MODE);
+  return(_mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_IDM_CTRL, mode));
+}
+
+int16_t FH101RF::setReceiverId(uint16_t id) {
+  uint8_t high = id >> 8;
+  uint8_t low = id & 0xFF;
+
+  int16_t state = _mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_ID_HI, high);
   RADIOLIB_ASSERT(state);
 
-  state = calibrateSamplePulse();
-  RADIOLIB_ASSERT(state);
-
-  state = calibrateComparator();
-  RADIOLIB_ASSERT(state);
-
-  return(RADIOLIB_ERR_NONE);
+  state = _mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_ID_LO, low);
+  return(state);
 }
 
 int16_t FH101RF::setBandBranchControlRaw(uint8_t value) {
