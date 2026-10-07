@@ -54,6 +54,20 @@ int16_t FH101RF::begin() {
     }
   }
 
+  // This is set according to 5.7 of the datasheet
+  int16_t state = setDCornerCtrl(0x02);
+  RADIOLIB_ASSERT(state);
+
+  state = setLcTgEna(0x00);
+  RADIOLIB_ASSERT(state);
+
+  state = setComparatorThreshold(0x0A);
+  RADIOLIB_ASSERT(state);
+
+  // Calibration
+  state = calibrate();
+  RADIOLIB_ASSERT(state);
+
   return(RADIOLIB_ERR_NONE);
 }
 
@@ -71,6 +85,194 @@ int16_t FH101RF::getChipVersion() {
 
 int16_t FH101RF::isClockSourceStable() {
   return(_mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_XTAL_GOOD));
+}
+
+int16_t FH101RF::setDCornerCtrl(uint8_t value) {
+  return(_mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_D_CORNER_CTRL, value));
+}
+
+int16_t FH101RF::setLcTgEna(uint8_t value) {
+  return(_mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_LC_TG_ENA, value));
+}
+
+int16_t FH101RF::setActiveBands(bool band433, bool band868, bool band2G4) {
+  int16_t current = _mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL);
+  if (current < 0) {
+    return(current);
+  }
+
+  uint8_t value = (uint8_t) current;
+  if (band433) {
+    value |= RADIOLIB_FH101RF_BAND_433_MASK;
+  } else {
+    value &= ~RADIOLIB_FH101RF_BAND_433_MASK;
+  }
+
+  if (band868) {
+    value |= RADIOLIB_FH101RF_BAND_868_MASK;
+  } else {
+    value &= ~RADIOLIB_FH101RF_BAND_868_MASK;
+  }
+
+  if (band2G4) {
+    value |= RADIOLIB_FH101RF_BAND_2G4_MASK;
+  } else {
+    value &= ~RADIOLIB_FH101RF_BAND_2G4_MASK;
+  }
+
+  return(setBandBranchControlRaw(value));
+}
+
+int16_t FH101RF::setActiveBranches(bool branchWeak, bool branchMedium, bool branchStrong) {
+  int16_t current = _mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL);
+  if (current < 0) {
+    return(current);
+  }
+
+  uint8_t value = (uint8_t) current;
+  if (branchWeak) {
+    value |= RADIOLIB_FH101RF_BRANCH_WEAK_MASK;
+  } else {
+    value &= ~RADIOLIB_FH101RF_BRANCH_WEAK_MASK;
+  }
+
+  if (branchMedium) {
+    value |= RADIOLIB_FH101RF_BRANCH_MEDIUM_MASK;
+  } else {
+    value &= ~RADIOLIB_FH101RF_BRANCH_MEDIUM_MASK;
+  }
+
+  if (branchStrong) {
+    value |= RADIOLIB_FH101RF_BRANCH_STRONG_MASK;
+  } else {
+    value &= ~RADIOLIB_FH101RF_BRANCH_STRONG_MASK;
+  }
+
+  return(setBandBranchControlRaw(value));
+}
+
+int16_t FH101RF::setSampleRate(uint8_t srPreamble, uint8_t srFastRx) {
+  RADIOLIB_CHECK_RANGE(srPreamble, 0b000, 0b111, RADIOLIB_ERR_INVALID_SAMPLE_RATE);
+  RADIOLIB_CHECK_RANGE(srFastRx, 0b000, 0b111, RADIOLIB_ERR_INVALID_SAMPLE_RATE);
+
+  int16_t state = _mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_NFA433_SLOW, srPreamble);
+  state |= _mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_NFA868_SLOW, srPreamble);
+  state |= _mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_NFA2G4_SLOW, srPreamble);
+
+  state |= _mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_NFA433_FAST, srFastRx);
+  state |= _mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_NFA868_FAST, srFastRx);
+  state |= _mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_NFA2G4_FAST, srFastRx);
+
+  return(state);
+}
+
+int16_t FH101RF::calibrate() {
+  int16_t state = calibrateLocalOscillator();
+  RADIOLIB_ASSERT(state);
+
+  state = calibrateSamplePulse();
+  RADIOLIB_ASSERT(state);
+
+  state = calibrateComparator();
+  RADIOLIB_ASSERT(state);
+
+  return(RADIOLIB_ERR_NONE);
+}
+
+int16_t FH101RF::setBandBranchControlRaw(uint8_t value) {
+  return(_mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL, value));
+}
+
+int16_t FH101RF::startCalibration(uint8_t value) {
+  RADIOLIB_CHECK_RANGE(value, 0b10, 0b1000, RADIOLIB_ERR_INVALID_CALIBRATION_TYPE);
+
+  uint8_t calibValue = value | RADIOLIB_FH101RF_CALIBRATION_ACTIVE;
+  // TODO: "correct" SPIsetRegValue write function is too paranoid
+  // This register gets cleared when the calibration is initialized by the chip
+  // This process happens too quickly, so the write function fails
+  _mod->SPIwriteRegister(RADIOLIB_FH101RF_REG_CALIB_CTRL, calibValue);
+
+  uint8_t i = 0;
+  bool flagFound = false;
+  while ((i < 100) && !flagFound) {
+    _mod->hal->delay(10);
+
+    bool started = isCalibrationStarted();
+    if (started) {
+      flagFound = true;
+    } else {
+      RADIOLIB_DEBUG_BASIC_PRINTLN("Calibration has not started! (%d of 10 tries)", i + 1);
+    }
+
+    i++;
+  }
+
+  if(!flagFound) {
+    return(RADIOLIB_ERR_CALIBRATION_TIMEOUT);
+  }
+
+  i = 0;
+  flagFound = false;
+  while ((i < 10) && !flagFound) {
+    _mod->hal->delay(100);
+
+    bool running = isCalibrationRunning();
+    if (!running) {
+      flagFound = true;
+    } else {
+      RADIOLIB_DEBUG_BASIC_PRINTLN("Calibration is still running! (%d of 10 tries)", i + 1);
+    }
+
+    i++;
+  }
+
+  if(!flagFound) {
+    return(RADIOLIB_ERR_CALIBRATION_TIMEOUT);
+  }
+
+  return(RADIOLIB_ERR_NONE);
+}
+
+bool FH101RF::isCalibrationStarted() {
+  int16_t value = _mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_CALIB_CTRL);
+  return(!(value & RADIOLIB_FH101RF_CALIBRATION_ACTIVE));
+}
+
+bool FH101RF::isCalibrationRunning() {
+  int16_t value = _mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_CALIB_STATUS);
+  return(value & RADIOLIB_FH101RF_CALIBRATION_ACTIVE);
+}
+
+int16_t FH101RF::calibrateLocalOscillator() {
+  return startCalibration(RADIOLIB_FH101RF_CALIBRATION_OSCILLATOR);
+}
+
+int16_t FH101RF::calibrateSamplePulse() {
+  // According to 7.3.3 of the datasheet, this needs to be set to 0x46
+  // for optimal current consumption
+  int16_t state = _mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_N_SPG_TARGET, 0x46);
+  RADIOLIB_ASSERT(state);
+
+  return startCalibration(RADIOLIB_FH101RF_CALIBRATION_SAMPLE_PULSE);
+}
+
+int16_t FH101RF::calibrateComparator() {
+  // For calibration, set the chip to be active on all bands and branches
+  // Keep the current value to set it back once the calibration has finished
+  uint8_t cache = _mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL);
+  _mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL, 0b111, 6, 4);
+  
+  // According to 7.3.1 of the datasheet, this has to be set to 0x0A
+  setComparatorThreshold(0x0A);
+
+  int16_t state = startCalibration(RADIOLIB_FH101RF_CALIBRATION_COMPARATOR);
+  RADIOLIB_ASSERT(state);
+
+  return(_mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL, cache));
+}
+
+int16_t FH101RF::setComparatorThreshold(uint8_t value) {
+  return(_mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_COMP_THRESH_W, value));
 }
 
 #endif

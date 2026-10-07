@@ -44,14 +44,49 @@
 */
 
 // FH101RF register map                                   | spaces up to this point
+#define RADIOLIB_FH101RF_REG_NFA433_SLOW                  0x00
+#define RADIOLIB_FH101RF_REG_NFA433_FAST                  0x01
+#define RADIOLIB_FH101RF_REG_NFA868_SLOW                  0x02
+#define RADIOLIB_FH101RF_REG_NFA868_FAST                  0x03
+#define RADIOLIB_FH101RF_REG_NFA2G4_SLOW                  0x04
+#define RADIOLIB_FH101RF_REG_NFA2G4_FAST                  0x05
+#define RADIOLIB_FH101RF_REG_CALIB_STATUS                 0x06
+#define RADIOLIB_FH101RF_REG_CALIB_CTRL                   0x07
+#define RADIOLIB_FH101RF_REG_N_SPG_TARGET                 0x09
+#define RADIOLIB_FH101RF_REG_D_CORNER_CTRL                0x23
+#define RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL             0x24
+#define RADIOLIB_FH101RF_REG_LC_TG_ENA                    0x76
 #define RADIOLIB_FH101RF_REG_XTAL_GOOD                    0x77
+#define RADIOLIB_FH101RF_REG_COMP_THRESH_W                0x78
 #define RADIOLIB_FH101RF_REG_VERSION                      0x7F
+
+// RADIOLIB_FH101RF_REG_CALIB_STATUS
+// RADIOLIB_FH101RF_REG_CALIB_CTRL                                      MSB   LSB   DESCRIPTION
+#define RADIOLIB_FH101RF_CALIBRATION_ACTIVE               0b00000001  //  0     0   Calibration should be activated or is active, if set
+#define RADIOLIB_FH101RF_CALIBRATION_OSCILLATOR           0b00000010  //  1     1   Oscillator calibration
+#define RADIOLIB_FH101RF_CALIBRATION_SAMPLE_PULSE         0b00000100  //  2     2   Sample Pulse calibration
+#define RADIOLIB_FH101RF_CALIBRATION_COMPARATOR           0b00001000  //  3     3   Comparator Calibration
+
+// RADIOLIB_FH101RF_REG_NFA_xxx_yyyy                                    
+#define RADIOLIB_FH101RF_SAMPLE_RATE_32768                0b00000000  //  2     0   Sample Rate: 32768 Hz, Code-Sequence-Duration:   0.977 ms, fastest for mono-band
+#define RADIOLIB_FH101RF_SAMPLE_RATE_16384                0b00000001  //  2     0                16384 Hz,                           1.953 ms, fastest for dual-band, fastest for 868 MHz band in tri-band mode
+#define RADIOLIB_FH101RF_SAMPLE_RATE_8192                 0b00000010  //  2     0                 8192 Hz,                           3.906 ms, fastest for 433 MHz and 2.4 GHz band in tri-band mode                       
+#define RADIOLIB_FH101RF_SAMPLE_RATE_4096                 0b00000011  //  2     0                 4096 Hz,                           7.813 ms
+#define RADIOLIB_FH101RF_SAMPLE_RATE_2048                 0b00000100  //  2     0                 2048 Hz,                          15.625 ms
+#define RADIOLIB_FH101RF_SAMPLE_RATE_1024                 0b00000101  //  2     0                 1024 Hz,                          31.250 ms, typical
+#define RADIOLIB_FH101RF_SAMPLE_RATE_512                  0b00000110  //  2     0                  512 Hz,                          62.500 ms
+#define RADIOLIB_FH101RF_SAMPLE_RATE_256                  0b00000111  //  2     0                  256 Hz,                         125.000 ms, slowest
+
+// RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL                                MSB   LSB     DESCRIPTION
+#define RADIOLIB_FH101RF_BRANCH_WEAK_MASK                 0b00000001  //  0     0     Mask for weak branch
+#define RADIOLIB_FH101RF_BRANCH_MEDIUM_MASK               0b00000010  //  1     1     Mask for medium branch
+#define RADIOLIB_FH101RF_BRANCH_STRONG_MASK               0b00000100  //  2     2     Mask for strong branch
+#define RADIOLIB_FH101RF_BAND_433_MASK                    0b00010000  //  4     4     Mask for the 433 MHz band
+#define RADIOLIB_FH101RF_BAND_868_MASK                    0b00100000  //  5     5     Mask for the 868 MHz band
+#define RADIOLIB_FH101RF_BAND_2G4_MASK                    0b01000000  //  6     6     Mask for the 2G4 MHz band
 
 // RADIOLIB_FH101RF_REG_VERSION
 #define RADIOLIB_FH101RF_VERSION_CURRENT                  0x41
-
-// FH101RF_REG_<register_name>                                            MSB   LSB   DESCRIPTION
-#define RADIOLIB_FH101RF_TEST                             0b00000000  //  7     0     <description>
 
 // FH101RF SPI commands
 #define RADIOLIB_FH101RF_CMD_READ                         0b10000000
@@ -104,6 +139,30 @@ class FH101RF {
     */
     int16_t isClockSourceStable();
 
+    /*!
+      \brief Sets D_CORNER_CTRL. This needs to be set to 0x02 during power up.
+      \param value Value to be set, needs to be 0x02 during power up.
+      \returns \ref status_codes
+    */
+    int16_t setDCornerCtrl(uint8_t value);
+
+    /*!
+      \brief Sets LC_TG_ENA. This needs to be set to 0x00 during power up.
+      \param value Value to be set, needs to be 0x00 during power up.
+      \returns \ref status_codes
+    */
+    int16_t setLcTgEna(uint8_t value);
+
+    /*!
+      \brief Calibrates local oscillator, sample pulse and comparator.
+      \returns \ref status_codes
+    */
+    int16_t calibrate();
+
+    int16_t setActiveBands(bool band433, bool band868, bool band2G4);
+    int16_t setActiveBranches(bool branchWeak, bool branchMedium, bool branchStrong);
+    int16_t setSampleRate(uint8_t srPreamble, uint8_t srFastRx);
+
 #if !defined(RADIOLIB_GODMODE)
   private:
 #endif
@@ -118,6 +177,17 @@ class FH101RF {
 
       Usually, these are variables for saving module configuration, or methods that do not have to be exposed to the end user.
     */
+    int16_t setBandBranchControlRaw(uint8_t value);
+    int16_t startCalibration(uint8_t value);
+    
+    bool isCalibrationStarted();
+    bool isCalibrationRunning();
+
+    int16_t calibrateLocalOscillator();
+    int16_t calibrateSamplePulse();
+    int16_t calibrateComparator();
+
+    int16_t setComparatorThreshold(uint8_t value);
 };
 
 #endif

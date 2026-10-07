@@ -23,8 +23,20 @@ void setup() {
   SPI.begin(14, 12, 13, 15);
 
   // initialize FH101RF
-  Serial.print(F("[FH101RF] Initializing ... "));
+  Serial.print("[FH101RF] Initializing ... ");
   int16_t state = radio.begin();
+
+  if (state == RADIOLIB_ERR_NONE) {
+    Serial.println("success!");
+  } else {
+    Serial.printf("failed. Code: %d\n", state);
+    while (true) { delay(1000); }
+  }
+
+  Serial.print("[FH101RF] Configuring ... ");
+  
+  state = radio.setActiveBands(false, true, false);
+  state = radio.setActiveBranches(true, true, true);
 
   if (state == RADIOLIB_ERR_NONE) {
     Serial.println("success!");

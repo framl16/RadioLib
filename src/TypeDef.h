@@ -265,6 +265,11 @@
 */
 #define RADIOLIB_ERR_PACKET_TOO_SHORT                          (-30)
 
+/*!
+  \brief The supplied sample rate value is invalid for this module.
+*/
+#define RADIOLIB_ERR_INVALID_SAMPLE_RATE                       (-31)
+
 // RF69-specific status codes
 
 /*!
@@ -744,6 +749,17 @@
   Only one instance can hold an image when RADIOLIB_STATIC_ONLY is enabled.
 */
 #define RADIOLIB_ERR_SSDV_BUFFER_IN_USE                         (-1514)
+
+// FH101RF-specific error codes
+/*!
+  \brief The supplied calibration type does not exist.
+*/
+#define RADIOLIB_ERR_INVALID_CALIBRATION_TYPE                   (-1601)
+
+/*!
+  \brief The calibration did not start or failed to complete.
+*/
+#define RADIOLIB_ERR_CALIBRATION_TIMEOUT                        (-1602)
 
 /*!
   \}
