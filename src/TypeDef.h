@@ -772,6 +772,20 @@
 #define RADIOLIB_ERR_INVALID_CORRELATION_PATTERN                (-1604)
 
 /*!
+  \brief The supplied fifo length does not exist.
+*/
+#define RADIOLIB_ERR_INVALID_FIFO_LENGTH                        (-1605)
+
+/*!
+  \brief The supplied band does not exist.
+*/
+#define RADIOLIB_ERR_INVALID_BAND                               (-1606)
+
+/*!
+  \brief The amount of bits in the FIFO buffer is invalid.
+*/
+#define RADIOLIB_ERR_INVALID_FIFO_COUNT                         (-1607)
+/*!
   \}
 */
 

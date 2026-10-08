@@ -43,7 +43,7 @@ void IRAM_ATTR callback() {
 }
 
 void wakeup(uint16_t id, uint8_t* data, uint8_t length) {
-  uint8_t payloadLength = 2 + length;
+  uint8_t payloadLength = RADIOLIB_FH101RF_ID_LENGTH + length;
   uint8_t payload[payloadLength];
   payload[0] = (id >> 8);
   payload[1] = (id & 0xFF);
@@ -62,7 +62,7 @@ void wakeup(uint16_t id, uint8_t* data, uint8_t length) {
   FH101RF::getModulationForPreamble(RADIOLIB_FH101RF_CODE_MLS_A, modulationPreamble);
 
   // prepare payload modulation
-  uint16_t symbolsPayload = RADIOLIB_FH101RF_SYMBOL_SIZE * 8 * payloadLength;
+  uint16_t symbolsPayload = RADIOLIB_FH101RF_SYMBOL_SIZE * RADIOLIB_FH101RF_SYMBOLS_PER_BYTE * payloadLength;
   uint8_t modulationPayload[symbolsPayload] = {0};
   FH101RF::getModulationForPayload(RADIOLIB_FH101RF_CODE_MLS_A, RADIOLIB_FH101RF_CODE_MLS_B, payload, modulationPayload, payloadLength);
 
@@ -118,8 +118,9 @@ void setup() {
   state = fh101rf.setActiveBranches(true, true, true);
   state = fh101rf.setReceiverId(FH101RF_ID);
   state = fh101rf.setIdMatchMode(RADIOLIB_FH101RF_ID_MATCH_INDIVIDUAL_ONLY);
-  state = fh101rf.setIrqMode(RADIOLIB_FH101RF_IRQ_TYPE_ID_MATCH);
+  state = fh101rf.setIrqMode(RADIOLIB_FH101RF_IRQ_TYPE_ID_MATCH | RADIOLIB_FH101RF_IRQ_TYPE_ID_MATCH_AND_LDR | RADIOLIB_FH101RF_IRQ_TYPE_ID_MATCH_AND_FIFO);
   state = fh101rf.setSampleRate(RADIOLIB_FH101RF_SAMPLE_RATE_256, RADIOLIB_FH101RF_SAMPLE_RATE_1024);
+  state = fh101rf.setFifoLength(RADIOLIB_FH101RF_FIFO_LENGTH_32_BITS);
 
   if (state == RADIOLIB_ERR_NONE) {
     Serial.println("success!");
@@ -152,7 +153,8 @@ void setup() {
 
 void loop() {
   // send wakeup signal
-  wakeup(FH101RF_ID, nullptr, 0);
+  uint8_t data[2] = { 0x47, 0x11 };
+  wakeup(FH101RF_ID, data, sizeof(data));
 
   // the LED should have turned on now
   delay(3000);
@@ -162,10 +164,36 @@ void loop() {
     digitalWrite(PIN_LED, LOW);
 
     Serial.println("LED should have been on until now.");
-    Serial.println("Resetting the FH101RF for the next run.");
 
-    // reset irq of the FH101RF
+    // check irq of the FH101RF
     uint8_t irq = fh101rf.getIrqStatus();
+
+    // some data was (maybe) put in the fifo buffer
+    if(irq & RADIOLIB_FH101RF_IRQ_TYPE_ID_MATCH_AND_FIFO || irq & RADIOLIB_FH101RF_IRQ_TYPE_ID_MATCH_AND_LDR) {
+      Serial.println("Some data was written into the fifo buffer.");
+
+      uint8_t fifoBits = fh101rf.getFifoCount();
+      uint8_t fifoBytes = fifoBits / 8;
+
+      uint8_t buffer[fifoBytes] = { 0 };
+      fh101rf.getFifoBuffer(buffer, fifoBytes);
+
+      Serial.printf("Received a payload of %d bytes: ", fifoBytes);
+      
+      for(int i = 0; i < fifoBytes; i++) {
+        Serial.print(buffer[i], HEX);
+        Serial.print(" ");
+      }
+
+      Serial.println();
+    }
+
+    // only the ID was matched
+    else if(irq & RADIOLIB_FH101RF_IRQ_TYPE_ID_MATCH) {
+      Serial.println("Only the configured ID of the FH101RF was received.");
+    }
+
+    Serial.println("Resetting the FH101RF for the next run.");
     fh101rf.resetIrqStatus(irq);
     triggered = false;
   } else {

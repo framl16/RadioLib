@@ -341,8 +341,8 @@ int16_t FH101RF::setComparatorThreshold(uint8_t value) {
 void FH101RF::getModulationForCorrelationPattern(uint8_t pattern, uint8_t* modulation) {
   uint32_t sequence = correlatorSequences[pattern];
 
-  for(int i = 0; i < 32; i++) {
-    modulation[i] = (sequence >> (31 - i) & 0b1);
+  for(int i = 0; i < RADIOLIB_FH101RF_SYMBOL_SIZE; i++) {
+    modulation[i] = (sequence >> ((RADIOLIB_FH101RF_SYMBOL_SIZE - 1) - i) & 0b1);
   }
 }
 
@@ -359,15 +359,101 @@ void FH101RF::getModulationForPayload(uint8_t patternA, uint8_t patternB, uint8_
 
   for(int i = 0; i < byteLength; i++) {
     // get the symbol modulation for every bit of the byte
-    for(int j = 0; j < 8; j++) {
-      uint8_t* symbolModulation = (payload[i] >> (7 - j) & 0b1) ? modulationB : modulationA;
-      memcpy(modulation + (i * 8 + j) * RADIOLIB_FH101RF_SYMBOL_SIZE, symbolModulation, RADIOLIB_FH101RF_SYMBOL_SIZE);
+    for(int j = 0; j < RADIOLIB_FH101RF_SYMBOLS_PER_BYTE; j++) {
+      uint8_t* symbolModulation = (payload[i] >> ((RADIOLIB_FH101RF_SYMBOLS_PER_BYTE - 1) - j) & 0b1) ? modulationB : modulationA;
+      memcpy(modulation + (i * RADIOLIB_FH101RF_SYMBOLS_PER_BYTE + j) * RADIOLIB_FH101RF_SYMBOL_SIZE, symbolModulation, RADIOLIB_FH101RF_SYMBOL_SIZE);
     }
   }
 }
 
 uint16_t FH101RF::getSymbolDuration(uint8_t sampleRate) {
   return 1000000 / (32768 / pow(2, sampleRate) * 1.01);
+}
+
+int16_t FH101RF::getIdMatchBand() {
+  return(_mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_IDM_BAND));
+}
+
+int16_t FH101RF::getIdMatchReason() {
+  return(_mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_IDM_REASON));
+}
+
+int16_t FH101RF::setFifoLength(uint8_t length) {
+  return(setFifoLength(length, length, length));
+}
+
+int16_t FH101RF::setFifoLength(uint8_t length433, uint8_t length868, uint8_t length2G4) {
+  RADIOLIB_CHECK_RANGE(length433, 0b00, 0b11, RADIOLIB_ERR_INVALID_FIFO_LENGTH);
+  RADIOLIB_CHECK_RANGE(length868, 0b00, 0b11, RADIOLIB_ERR_INVALID_FIFO_LENGTH);
+  RADIOLIB_CHECK_RANGE(length2G4, 0b00, 0b11, RADIOLIB_ERR_INVALID_FIFO_LENGTH);
+
+  uint8_t value = 
+    length433 << RADIOLIB_FH101RF_FIFO_LENGTH_POS_433 + 
+    length868 << RADIOLIB_FH101RF_FIFO_LENGTH_POS_868 +
+    length2G4 << RADIOLIB_FH101RF_FIFO_LENGTH_POS_2G4;
+
+  return(_mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_FIFO_LENGTH, value));
+}
+
+int16_t FH101RF::getFifoCount() {
+  int16_t band = getIdMatchBand();
+  if(band < 0) {
+    return(band);
+  }
+
+  uint8_t fifoBits = 0;
+  switch(band) {
+    case RADIOLIB_FH101RF_IDM_BAND_433:
+      fifoBits = _mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_FIFO_COUNT_433);
+      break;
+    case RADIOLIB_FH101RF_IDM_BAND_868:
+      fifoBits = _mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_FIFO_COUNT_868);
+      break;
+    case RADIOLIB_FH101RF_IDM_BAND_2G4:
+      fifoBits = _mod->SPIgetRegValue(RADIOLIB_FH101RF_REG_FIFO_COUNT_2G4);
+      break;
+  }
+
+  return fifoBits;
+}
+
+int16_t FH101RF::getFifoBuffer(uint8_t* data, uint8_t length) {
+  int16_t band = getIdMatchBand();
+  if(band < 0) {
+    return(band);
+  }
+
+  int16_t fifoBits = getFifoCount();
+  if(fifoBits < 0) {
+    return(fifoBits);
+  }
+
+  uint8_t fifoBytes = fifoBits / 8;
+  if (fifoBytes == 0) {
+    return(RADIOLIB_ERR_NONE);
+  } else if (fifoBytes > 5) {
+    return(RADIOLIB_ERR_INVALID_FIFO_COUNT);
+  }
+
+  uint8_t startReg = 0;
+  switch(band) {
+    case RADIOLIB_FH101RF_IDM_BAND_433:
+      startReg = RADIOLIB_FH101RF_REG_RX_FIFO_0_433;
+      break;
+    case RADIOLIB_FH101RF_IDM_BAND_868:
+      startReg = RADIOLIB_FH101RF_REG_RX_FIFO_0_868;
+      break;
+    case RADIOLIB_FH101RF_IDM_BAND_2G4:
+      startReg = RADIOLIB_FH101RF_REG_RX_FIFO_0_868;
+      break;
+  }
+
+  uint8_t steps = min(length, fifoBytes);
+  for (int i = 0; i < steps; i++) {
+    *(data + i) = _mod->SPIgetRegValue(startReg - i);
+  }
+
+  return(steps);
 }
 
 #endif

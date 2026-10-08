@@ -64,6 +64,28 @@
 #define RADIOLIB_FH101RF_REG_IDM_CTRL                     0x38
 #define RADIOLIB_FH101RF_REG_IDM_BAND                     0x3A
 #define RADIOLIB_FH101RF_REG_IDM_REASON                   0x3B
+#define RADIOLIB_FH101RF_REG_FIFO_LENGTH                  0x56
+#define RADIOLIB_FH101RF_REG_FIFO_COUNT_433               0x57
+#define RADIOLIB_FH101RF_REG_FIFO_COUNT_868               0x58
+#define RADIOLIB_FH101RF_REG_FIFO_COUNT_2G4               0x59
+#define RADIOLIB_FH101RF_REG_RX_FIFO_5_433                0x5A
+#define RADIOLIB_FH101RF_REG_RX_FIFO_4_433                0x5B
+#define RADIOLIB_FH101RF_REG_RX_FIFO_3_433                0x5C
+#define RADIOLIB_FH101RF_REG_RX_FIFO_2_433                0x5D
+#define RADIOLIB_FH101RF_REG_RX_FIFO_1_433                0x5E
+#define RADIOLIB_FH101RF_REG_RX_FIFO_0_433                0x5F
+#define RADIOLIB_FH101RF_REG_RX_FIFO_5_868                0x60
+#define RADIOLIB_FH101RF_REG_RX_FIFO_4_868                0x61
+#define RADIOLIB_FH101RF_REG_RX_FIFO_3_868                0x62
+#define RADIOLIB_FH101RF_REG_RX_FIFO_2_868                0x63
+#define RADIOLIB_FH101RF_REG_RX_FIFO_1_868                0x64
+#define RADIOLIB_FH101RF_REG_RX_FIFO_0_868                0x65
+#define RADIOLIB_FH101RF_REG_RX_FIFO_5_2G4                0x66
+#define RADIOLIB_FH101RF_REG_RX_FIFO_4_2G4                0x67
+#define RADIOLIB_FH101RF_REG_RX_FIFO_3_2G4                0x68
+#define RADIOLIB_FH101RF_REG_RX_FIFO_2_2G4                0x69
+#define RADIOLIB_FH101RF_REG_RX_FIFO_1_2G4                0x6A
+#define RADIOLIB_FH101RF_REG_RX_FIFO_0_2G4                0x6B
 #define RADIOLIB_FH101RF_REG_LC_TG_ENA                    0x76
 #define RADIOLIB_FH101RF_REG_XTAL_GOOD                    0x77
 #define RADIOLIB_FH101RF_REG_COMP_THRESH_W                0x78
@@ -140,6 +162,15 @@
 #define RADIOLIB_FH101RF_IDM_REASON_GROUP_ID              0b00000010  //  2     0   Group ID
 #define RADIOLIB_FH101RF_IDM_REASON_BROADCAST_ID          0b00000011  //  2     0   Broadcast ID
 
+// RADIOLIB_FH101RF_REG_FIFO_LENGTH
+#define RADIOLIB_FH101RF_FIFO_LENGTH_16_BITS              0b00
+#define RADIOLIB_FH101RF_FIFO_LENGTH_24_BITS              0b01
+#define RADIOLIB_FH101RF_FIFO_LENGTH_32_BITS              0b10
+#define RADIOLIB_FH101RF_FIFO_LENGTH_40_BITS              0b11
+#define RADIOLIB_FH101RF_FIFO_LENGTH_POS_433              0
+#define RADIOLIB_FH101RF_FIFO_LENGTH_POS_868              2
+#define RADIOLIB_FH101RF_FIFO_LENGTH_POS_2G4              4
+
 // RADIOLIB_FH101RF_REG_VERSION
 #define RADIOLIB_FH101RF_VERSION_CURRENT                  0x41
 
@@ -149,7 +180,8 @@
 
 // FH101RF Symbol Specifications
 #define RADIOLIB_FH101RF_SYMBOL_SIZE                      32
-#define RADIOLIB_FH101RF_ID_SYMBOLS                       16
+#define RADIOLIB_FH101RF_SYMBOLS_PER_BYTE                 8
+#define RADIOLIB_FH101RF_ID_LENGTH                        2
 #define RADIOLIB_FH101RF_AMOUNT_CORRELATION_PATTERNS      16
 
 /*
@@ -291,6 +323,46 @@ class FH101RF {
     static void getModulationForPreamble(uint8_t pattern, uint8_t* symbol);
     static void getModulationForPayload(uint8_t patternOne, uint8_t patternZero, uint8_t* payload, uint8_t* symbols, uint8_t byteLength);
     static uint16_t getSymbolDuration(uint8_t sampleRate);
+
+    /*!
+      \brief Gets the frequency band for the latest ID match event.
+      \returns Band value of BandType_t or \ref status_codes
+    */
+    int16_t getIdMatchBand();
+
+    /*!
+      \brief Gets the reason/type of the last received wake-up message.
+      \returns Reason type or \ref status_codes
+    */
+    int16_t getIdMatchReason();
+
+    /*!
+      \brief Sets the designated fifo buffer length on all bands.
+      \param length Amount of bits the fifo buffer length should be set to.
+      \returns \ref status_codes
+    */
+    int16_t setFifoLength(uint8_t length);
+
+    /*!
+      \brief Sets the designated fifo buffer length on the three different bands.
+      \param length433 Amount of bits the fifo buffer length of the 433 MHz band should be set to.
+      \param length868 Amount of bits the fifo buffer length of the 868 MHz band should be set to.
+      \param length2G4 Amount of bits the fifo buffer length of the 2.4 GHz band should be set to.
+      \returns \ref status_codes
+    */
+    int16_t setFifoLength(uint8_t length433, uint8_t length868, uint8_t length2G4);
+
+    /*!
+      \brief Gets the bit count of the received data in the FIFO buffer on the band that was last triggered.
+      \returns \ref status_codes
+    */
+    int16_t getFifoCount();
+
+    /*!
+      \brief Gets the data of the FIFO buffer on the band that was last triggered.
+      \returns \ref status_codes
+    */
+    int16_t getFifoBuffer(uint8_t* data, uint8_t length);
 
 #if !defined(RADIOLIB_GODMODE)
   private:
