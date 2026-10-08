@@ -55,6 +55,7 @@
 #define RADIOLIB_FH101RF_REG_N_SPG_TARGET                 0x09
 #define RADIOLIB_FH101RF_REG_D_CORNER_CTRL                0x23
 #define RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL             0x24
+#define RADIOLIB_FH101RF_REG_CODE_SELECT                  0x28
 #define RADIOLIB_FH101RF_REG_IRQ_SELECT                   0x31
 #define RADIOLIB_FH101RF_REG_IRQ_STATUS                   0x32
 #define RADIOLIB_FH101RF_REG_IRQ_CLR                      0x33
@@ -93,6 +94,24 @@
 #define RADIOLIB_FH101RF_BAND_868_MASK                    0b00100000  //  5     5   Mask for the 868 MHz band
 #define RADIOLIB_FH101RF_BAND_2G4_MASK                    0b01000000  //  6     6   Mask for the 2G4 MHz band
 
+// RADIOLIB_FH101RF_REG_CODE_SELECT
+#define RADIOLIB_FH101RF_CODE_MLS_A                       0x0
+#define RADIOLIB_FH101RF_CODE_MLS_B                       0x1
+#define RADIOLIB_FH101RF_CODE_MLS_C                       0x2
+#define RADIOLIB_FH101RF_CODE_MLS_D                       0x3
+#define RADIOLIB_FH101RF_CODE_MLS_A_INV                   0x4
+#define RADIOLIB_FH101RF_CODE_MLS_B_INV                   0x5
+#define RADIOLIB_FH101RF_CODE_M_SEQUENCE_A                0x6
+#define RADIOLIB_FH101RF_CODE_M_SEQUENCE_B                0x7
+#define RADIOLIB_FH101RF_CODE_31_ZEROS                    0x8
+#define RADIOLIB_FH101RF_CODE_8_ONES                      0x9
+#define RADIOLIB_FH101RF_CODE_16_ONES                     0xA
+#define RADIOLIB_FH101RF_CODE_24_ONES                     0xB
+#define RADIOLIB_FH101RF_CODE_31_ONES                     0xC
+#define RADIOLIB_FH101RF_CODE_0101_PATTERN                0xD
+#define RADIOLIB_FH101RF_CODE_1100_PATTERN                0xE
+#define RADIOLIB_FH101RF_CODE_111000_PATTERN              0xF
+
 // RADIOLIB_FH101RF_REG_IRQ_SELECT
 #define RADIOLIB_FH101RF_IRQ_TYPE_ID_MATCH                0b00000001  //  0     0   16-bit ID fits to received FDD
 #define RADIOLIB_FH101RF_IRQ_TYPE_FIFO_OVERFLOW           0b00000010  //  1     1   FIFO buffer is overflowed   
@@ -127,6 +146,11 @@
 // FH101RF SPI commands
 #define RADIOLIB_FH101RF_CMD_READ                         0b10000000
 #define RADIOLIB_FH101RF_CMD_WRITE                        0b00000000
+
+// FH101RF Symbol Specifications
+#define RADIOLIB_FH101RF_SYMBOL_SIZE                      32
+#define RADIOLIB_FH101RF_ID_SYMBOLS                       16
+#define RADIOLIB_FH101RF_AMOUNT_CORRELATION_PATTERNS      16
 
 /*
   Module class definition
@@ -256,6 +280,18 @@ class FH101RF {
     */
     int16_t setReceiverId(uint16_t id);
 
+    /*!
+      \brief Selects the bit sequences that represent "code A" and "code B" in the wake-up protocol.
+      \param codeA Index of bit sequence for "code A"
+      \param codeB Index of bit sequence for "code B"
+      \returns \ref status_codes
+    */
+    int16_t setCorrelationPatterns(uint8_t codeA, uint8_t codeB);
+    
+    static void getModulationForPreamble(uint8_t pattern, uint8_t* symbol);
+    static void getModulationForPayload(uint8_t patternOne, uint8_t patternZero, uint8_t* payload, uint8_t* symbols, uint8_t byteLength);
+    static uint16_t getSymbolDuration(uint8_t sampleRate);
+
 #if !defined(RADIOLIB_GODMODE)
   private:
 #endif
@@ -281,6 +317,8 @@ class FH101RF {
     int16_t calibrateComparator();
 
     int16_t setComparatorThreshold(uint8_t value);
+
+    static void getModulationForCorrelationPattern(uint8_t pattern, uint8_t* modulation);
 };
 
 #endif

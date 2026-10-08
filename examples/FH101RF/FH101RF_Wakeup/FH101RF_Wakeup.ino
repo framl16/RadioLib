@@ -23,31 +23,6 @@
 #define SX1276_PIN_DIO2 32
 #define PIN_LED 21
 
-uint8_t symbolA[LENGTH_SYMBOL] = { 
-  0, 1, 1, 0, 
-  1, 0, 1, 0, 
-  1, 1, 0, 0, 
-  1, 1, 0, 1, 
-  0, 1, 1, 0, 
-  0, 1, 1, 1, 
-  0, 1, 0, 0, 
-  1, 1, 1, 1
-};
-
-uint8_t symbolB[LENGTH_SYMBOL] = {
-  0, 1, 1, 0,
-  1, 1, 0, 1,
-  0, 0, 1, 1,
-  1, 0, 0, 0,
-  1, 0, 0, 1,
-  0, 1, 1, 1,
-  0, 1, 1, 1,
-  0, 0, 1, 1
-};
-
-uint16_t delaySlow = 1000000 / (32768 / pow(2, SPEED_LDR) * 1.01);
-uint16_t delayFast = 1000000 / (32768 / pow(2, SPEED_HDR) * 1.01);
-
 SPIClass spiFH(HSPI);
 SPIClass spiSX(VSPI);
 
@@ -61,25 +36,28 @@ void IRAM_ATTR callback() {
 }
 
 void wakeup(uint16_t id, uint8_t* data, uint8_t length) {
-  uint8_t payloadLength = LENGTH_ID + length;
-  uint8_t payload[payloadLength] = { 0 };
-
+  uint8_t payloadLength = 2 + length;
+  uint8_t payload[payloadLength];
   payload[0] = (id >> 8);
   payload[1] = (id & 0xFF);
 
-  if(data != nullptr && length > 0) {
+  if(data != nullptr) {
     memcpy(payload + 2, data, length);
   }
 
-  // prepare symbol cache
-  uint8_t symbolsId[LENGTH_SYMBOL * payloadLength * 8] = { 0 };
+  // calculate delays
+  uint16_t delaySlow = FH101RF::getSymbolDuration(SPEED_LDR);
+  uint16_t delayFast = FH101RF::getSymbolDuration(SPEED_HDR);
 
-  for(int i = 0; i < payloadLength; i++) {
-    for(int j = 0; j < 8; j++) {
-      uint8_t* symbol = (payload[i] >> (7 - j) & 0b1) ? symbolB : symbolA;
-      memcpy(symbolsId + (i * 8 + j) * LENGTH_SYMBOL, symbol, LENGTH_SYMBOL);
-    }
-  }
+  // prepare preamble modulation
+  uint16_t symbolsPreamble = RADIOLIB_FH101RF_SYMBOL_SIZE;
+  uint8_t modulationPreamble[symbolsPreamble] = {0};
+  FH101RF::getModulationForPreamble(RADIOLIB_FH101RF_CODE_MLS_A, modulationPreamble);
+
+  // prepare payload modulation
+  uint16_t symbolsPayload = RADIOLIB_FH101RF_SYMBOL_SIZE * 8 * payloadLength;
+  uint8_t modulationPayload[symbolsPayload] = {0};
+  FH101RF::getModulationForPayload(RADIOLIB_FH101RF_CODE_MLS_A, RADIOLIB_FH101RF_CODE_MLS_B, payload, modulationPayload, payloadLength);
 
   // activate direct mode transmitter
   Serial.println("Starting transmission.");
@@ -89,18 +67,18 @@ void wakeup(uint16_t id, uint8_t* data, uint8_t length) {
     Serial.println(state);
   }
 
-  // send preamble
-  for(int i = 0; i < LENGTH_SYMBOL; i++) {
-    digitalWrite(SX1276_PIN_DIO2, symbolA[i]);
+  // send preamble symbols
+  for(int i = 0; i < symbolsPreamble; i++) {
+    digitalWrite(SX1276_PIN_DIO2, modulationPreamble[i]);
     delayMicroseconds(delaySlow);
   }
 
   digitalWrite(SX1276_PIN_DIO2, LOW);
   delay(5);
 
-  // send id symbols
-  for(int i = 0; i < LENGTH_ID * LENGTH_SYMBOL; i++) {
-    digitalWrite(SX1276_PIN_DIO2, symbolsId[i]);
+  // send payload symbols
+  for(int i = 0; i < symbolsPayload; i++) {
+    digitalWrite(SX1276_PIN_DIO2, modulationPayload[i]);
     delayMicroseconds(delayFast);
   }
 
@@ -126,6 +104,7 @@ void setup() {
     while (true) { delay(1000); }
   }
 
+  // configure FH101RF
   Serial.print("[FH101RF] Configuring ... ");
   
   state = fh101rf.setActiveBands(false, true, false);
@@ -142,6 +121,7 @@ void setup() {
     while (true) { delay(1000); }
   }
   
+  // initialize SX1276
   Serial.print(F("[SX1276] Initializing ... "));
 
   state = sx1276.beginFSK(868.0, 1.024, 10, 125, 2, 16, true);
@@ -151,7 +131,7 @@ void setup() {
     Serial.printf("failed. Code: %d\n", state);
     while (true) { delay(1000); }
   }
-
+  
   pinMode(PIN_LED, OUTPUT);
   pinMode(SX1276_PIN_DIO2, OUTPUT);
 

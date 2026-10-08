@@ -767,6 +767,11 @@
 #define RADIOLIB_ERR_INVALID_ID_MATCH_MODE                      (-1603)
 
 /*!
+  \brief The supplied correlation pattern does not exist.
+*/
+#define RADIOLIB_ERR_INVALID_CORRELATION_PATTERN                (-1604)
+
+/*!
   \}
 */
 

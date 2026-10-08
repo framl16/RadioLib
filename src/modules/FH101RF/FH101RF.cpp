@@ -1,6 +1,25 @@
 #include "FH101RF.h"
 #if !defined(RADIOLIB_EXCLUDE_FH101RF)
 
+static const uint32_t correlatorSequences[RADIOLIB_FH101RF_AMOUNT_CORRELATION_PATTERNS] = {
+  1791846223, // RADIOLIB_FH101RF_CODE_MLS_A
+  1832425331, // RADIOLIB_FH101RF_CODE_MLS_B
+  1913874966, // RADIOLIB_FH101RF_CODE_MLS_C
+   233608647, // RADIOLIB_FH101RF_CODE_MLS_D
+   355637424, // RADIOLIB_FH101RF_CODE_MLS_A_INV
+   315058316, // RADIOLIB_FH101RF_CODE_MLS_B_INV
+  1113190842, // RADIOLIB_FH101RF_CODE_M_SEQUENCE_A
+  1126685782, // RADIOLIB_FH101RF_CODE_M_SEQUENCE_B
+           0, // RADIOLIB_FH101RF_CODE_31_ZEROS
+  2139095040, // RADIOLIB_FH101RF_CODE_8_ONES
+  2147450880, // RADIOLIB_FH101RF_CODE_16_ONES
+  2147483520, // RADIOLIB_FH101RF_CODE_24_ONES
+  2147483647, // RADIOLIB_FH101RF_CODE_31_ONES
+  1431655765, // RADIOLIB_FH101RF_CODE_0101_PATTERN
+  1717986918, // RADIOLIB_FH101RF_CODE_1100_PATTERN
+  1908874353  // RADIOLIB_FH101RF_CODE_111000_PATTERN
+};
+
 FH101RF::FH101RF(Module* mod) {
   _mod = mod;
 }
@@ -215,6 +234,14 @@ int16_t FH101RF::setReceiverId(uint16_t id) {
   return(state);
 }
 
+int16_t FH101RF::setCorrelationPatterns(uint8_t codeA, uint8_t codeB) {
+  RADIOLIB_CHECK_RANGE(codeA, 0x0, 0xF, RADIOLIB_ERR_INVALID_CORRELATION_PATTERN);
+  RADIOLIB_CHECK_RANGE(codeB, 0x0, 0xF, RADIOLIB_ERR_INVALID_CORRELATION_PATTERN);
+
+  uint8_t value = codeB << 4 | codeA;
+  return(_mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_CODE_SELECT, value));
+}
+
 int16_t FH101RF::setBandBranchControlRaw(uint8_t value) {
   return(_mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_BAND_BRANCH_CTRL, value));
 }
@@ -309,6 +336,38 @@ int16_t FH101RF::calibrateComparator() {
 
 int16_t FH101RF::setComparatorThreshold(uint8_t value) {
   return(_mod->SPIsetRegValue(RADIOLIB_FH101RF_REG_COMP_THRESH_W, value));
+}
+
+void FH101RF::getModulationForCorrelationPattern(uint8_t pattern, uint8_t* modulation) {
+  uint32_t sequence = correlatorSequences[pattern];
+
+  for(int i = 0; i < 32; i++) {
+    modulation[i] = (sequence >> (31 - i) & 0b1);
+  }
+}
+
+void FH101RF::getModulationForPreamble(uint8_t pattern, uint8_t* modulation) {
+  return getModulationForCorrelationPattern(pattern, modulation);
+}
+
+void FH101RF::getModulationForPayload(uint8_t patternA, uint8_t patternB, uint8_t* payload, uint8_t* modulation, uint8_t byteLength) {
+  uint8_t modulationA[RADIOLIB_FH101RF_SYMBOL_SIZE] = {0};
+  uint8_t modulationB[RADIOLIB_FH101RF_SYMBOL_SIZE] = {0};
+
+  getModulationForCorrelationPattern(patternA, modulationA);
+  getModulationForCorrelationPattern(patternB, modulationB);
+
+  for(int i = 0; i < byteLength; i++) {
+    // get the symbol modulation for every bit of the byte
+    for(int j = 0; j < 8; j++) {
+      uint8_t* symbolModulation = (payload[i] >> (7 - j) & 0b1) ? modulationB : modulationA;
+      memcpy(modulation + (i * 8 + j) * RADIOLIB_FH101RF_SYMBOL_SIZE, symbolModulation, RADIOLIB_FH101RF_SYMBOL_SIZE);
+    }
+  }
+}
+
+uint16_t FH101RF::getSymbolDuration(uint8_t sampleRate) {
+  return 1000000 / (32768 / pow(2, sampleRate) * 1.01);
 }
 
 #endif
