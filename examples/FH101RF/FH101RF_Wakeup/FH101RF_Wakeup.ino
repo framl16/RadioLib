@@ -14,20 +14,27 @@
 #include <RadioLib.h>
 #include <SPI.h>
 
-#define LENGTH_SYMBOL 32
-#define LENGTH_ID 16
-#define SPEED_LDR 7
-#define SPEED_HDR 5
-
 #define FH101RF_ID 0x1989
+#define FH101RF_SPEED_LDR 7
+#define FH101RF_SPEED_HDR 5
+#define FH101RF_PIN_CS 15
+#define FH101RF_PIN_IRQ 4
+#define FH101RF_PIN_RST 0
+#define FH101RF_PIN_GPIO 36
+
+#define SX1276_PIN_CS 18
+#define SX1276_PIN_IRQ 26
+#define SX1276_PIN_RST 23
+#define SX1276_PIN_GPIO 33
 #define SX1276_PIN_DIO2 32
+
 #define PIN_LED 21
 
 SPIClass spiFH(HSPI);
 SPIClass spiSX(VSPI);
 
-FH101RF fh101rf = new Module(15, 4, 0, 36, spiFH);
-SX1276 sx1276 = new Module(18, 26, 23, 33, spiSX);
+FH101RF fh101rf = new Module(FH101RF_PIN_CS, FH101RF_PIN_IRQ, FH101RF_PIN_RST, FH101RF_PIN_GPIO, spiFH);
+SX1276 sx1276 = new Module(SX1276_PIN_CS, SX1276_PIN_IRQ, SX1276_PIN_RST, SX1276_PIN_GPIO, spiSX);
 
 bool triggered = false;
 void IRAM_ATTR callback() {
@@ -46,8 +53,8 @@ void wakeup(uint16_t id, uint8_t* data, uint8_t length) {
   }
 
   // calculate delays
-  uint16_t delaySlow = FH101RF::getSymbolDuration(SPEED_LDR);
-  uint16_t delayFast = FH101RF::getSymbolDuration(SPEED_HDR);
+  uint16_t delaySlow = FH101RF::getSymbolDuration(FH101RF_SPEED_LDR);
+  uint16_t delayFast = FH101RF::getSymbolDuration(FH101RF_SPEED_HDR);
 
   // prepare preamble modulation
   uint16_t symbolsPreamble = RADIOLIB_FH101RF_SYMBOL_SIZE;
@@ -131,14 +138,14 @@ void setup() {
     Serial.printf("failed. Code: %d\n", state);
     while (true) { delay(1000); }
   }
-  
+
   pinMode(PIN_LED, OUTPUT);
   pinMode(SX1276_PIN_DIO2, OUTPUT);
 
   digitalWrite(PIN_LED, LOW);
   digitalWrite(SX1276_PIN_DIO2, LOW);
 
-  attachInterrupt(4, callback, HIGH);
+  attachInterrupt(FH101RF_PIN_IRQ, callback, HIGH);
   delay(5000);
   return;
 }
