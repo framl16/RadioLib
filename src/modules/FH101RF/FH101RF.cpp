@@ -24,15 +24,18 @@ FH101RF::FH101RF(Module* mod) {
   _mod = mod;
 }
 
-int16_t FH101RF::begin() {
+int16_t FH101RF::begin(bool shouldReset) {
   // set module properties
   _mod->spiConfig.cmds[RADIOLIB_MODULE_SPI_COMMAND_READ] = RADIOLIB_FH101RF_CMD_READ;
   _mod->spiConfig.cmds[RADIOLIB_MODULE_SPI_COMMAND_WRITE] = RADIOLIB_FH101RF_CMD_WRITE;
   _mod->init();
+  _mod->hal->pinMode(_mod->getRst(), _mod->hal->GpioModeOutput);
   _mod->hal->pinMode(_mod->getIrq(), _mod->hal->GpioModeInput);
   _mod->hal->pinMode(_mod->getRst(), _mod->hal->GpioModeOutput);
-  
-  reset();
+
+  if(shouldReset) {
+    reset();
+  }
 
   // try to find the FH101RF chip
   uint8_t i = 0;
@@ -91,7 +94,6 @@ int16_t FH101RF::begin() {
 }
 
 void FH101RF::reset() {
-  _mod->hal->pinMode(_mod->getRst(), _mod->hal->GpioModeOutput);
   _mod->hal->digitalWrite(_mod->getRst(), _mod->hal->GpioLevelLow);
   _mod->hal->delay(1);
   _mod->hal->digitalWrite(_mod->getRst(), _mod->hal->GpioLevelHigh);

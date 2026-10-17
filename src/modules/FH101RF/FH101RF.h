@@ -206,7 +206,7 @@ class FH101RF {
       The "begin" method MUST initialize the module and return the status as int16_t type.
     */
     // basic methods
-    int16_t begin();
+    int16_t begin(bool shouldReset = true);
 
     /*
       The class MAY implement additional methods.
