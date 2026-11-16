@@ -320,6 +320,10 @@ class FH101RF {
     */
     int16_t setCorrelationPatterns(uint8_t codeA, uint8_t codeB);
     
+    static void getModulation(uint8_t ldr, uint8_t hdr, uint8_t patternOne, uint8_t patternZero, uint8_t* payload, uint8_t payloadLength, uint8_t* output);
+    static uint16_t getModulationLength(uint8_t ldr, uint8_t hdr, uint8_t payloadLength);
+    static uint8_t getModulationMultiplier(uint8_t ldr, uint8_t hdr);
+
     static void getModulationForPreamble(uint8_t pattern, uint8_t* symbol);
     static void getModulationForPayload(uint8_t patternOne, uint8_t patternZero, uint8_t* payload, uint8_t* symbols, uint8_t byteLength);
     static uint16_t getSymbolDuration(uint8_t sampleRate);
