@@ -354,32 +354,32 @@ void FH101RF::getModulationForPreamble(uint8_t pattern, uint8_t* modulation) {
 }
 
 void FH101RF::getModulationForPayload(uint8_t patternA, uint8_t patternB, uint8_t* payload, uint8_t* modulation, uint8_t byteLength) {
-  uint8_t modulationA[4] = {0};
-  uint8_t modulationB[4] = {0};
+  uint8_t modulationA[RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES] = {0};
+  uint8_t modulationB[RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES] = {0};
 
   getModulationForCorrelationPattern(patternA, modulationA);
   getModulationForCorrelationPattern(patternB, modulationB);
 
   for(int i = 0; i < byteLength; i++) {
     // get the symbol modulation for every bit of the byte
-    for(int j = 0; j < RADIOLIB_FH101RF_SYMBOLS_PER_BYTE; j++) {
-      uint8_t* symbolModulation = (payload[i] >> ((RADIOLIB_FH101RF_SYMBOLS_PER_BYTE - 1) - j) & 0b1) ? modulationB : modulationA;
+    for(int j = 0; j < RADIOLIB_FH101RF_SYMBOLS_PER_PAYLOAD_BYTE; j++) {
+      uint8_t* symbolModulation = (payload[i] >> ((RADIOLIB_FH101RF_SYMBOLS_PER_PAYLOAD_BYTE - 1) - j) & 0b1) ? modulationB : modulationA;
 
-      memcpy(modulation + (i * RADIOLIB_FH101RF_SYMBOLS_PER_BYTE + j) * 4, symbolModulation, 4);
+      memcpy(modulation + (i * RADIOLIB_FH101RF_SYMBOLS_PER_PAYLOAD_BYTE + j) * 4, symbolModulation, 4);
     }
   }
 }
 
 void FH101RF::getModulation(uint8_t ldr, uint8_t hdr, uint8_t patternOne, uint8_t patternZero, uint8_t* payload, uint8_t payloadLength, uint8_t* modulation) {
-  uint8_t modulationA[4] = {0};
-  uint8_t modulationB[4] = {0};
+  uint8_t modulationA[RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES] = {0};
+  uint8_t modulationB[RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES] = {0};
   uint8_t multiplier = getModulationMultiplier(ldr, hdr);
 
   getModulationForCorrelationPattern(patternOne, modulationA);
   getModulationForCorrelationPattern(patternZero, modulationB);
 
   // reset modulation in case that did not happen before
-  memset(modulation, 0, 4 * multiplier + 4 * payloadLength);
+  memset(modulation, 0, RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES * multiplier + RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES * payloadLength);
 
   // stretch the preamble according to the multiplier
   int bitPos = 0;
@@ -396,23 +396,23 @@ void FH101RF::getModulation(uint8_t ldr, uint8_t hdr, uint8_t patternOne, uint8_
   }
 
   // keep one byte of "silence" for switching to HDR mode
-  int bytePos = 4 * multiplier + 1;
+  int bytePos = RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES * multiplier + 1;
 
   // copy the payload
   for(int i = 0; i < payloadLength; i++) {
     // get the symbol modulation for every bit of the byte
-    for(int j = 0; j < RADIOLIB_FH101RF_SYMBOLS_PER_BYTE; j++) {
-      uint8_t* symbolModulation = (payload[i] >> ((RADIOLIB_FH101RF_SYMBOLS_PER_BYTE - 1) - j) & 0b1) ? modulationB : modulationA;
+    for(int j = 0; j < RADIOLIB_FH101RF_SYMBOLS_PER_PAYLOAD_BYTE; j++) {
+      uint8_t* symbolModulation = (payload[i] >> ((RADIOLIB_FH101RF_SYMBOLS_PER_PAYLOAD_BYTE - 1) - j) & 0b1) ? modulationB : modulationA;
 
-      memcpy(modulation + bytePos, symbolModulation, 4);
-      bytePos += 4;
+      memcpy(modulation + bytePos, symbolModulation, RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES);
+      bytePos += RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES;
     }
   }
 }
 
 uint16_t FH101RF::getModulationLength(uint8_t ldr, uint8_t hdr, uint8_t payloadLength) {
   uint8_t multiplier = getModulationMultiplier(ldr, hdr);
-  return 4 * multiplier + 4 * payloadLength;
+  return RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES * multiplier + RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES * payloadLength;
 }
 
 uint8_t FH101RF::getModulationMultiplier(uint8_t ldr, uint8_t hdr) {
