@@ -824,6 +824,18 @@ class SX127x: public PhysicalLayer {
     void clearFifoFullAction();
 
     /*!
+      \brief Query the IRQ flags for the FIFO_LEVEL bit.
+      \returns Whether fifo is filled with at least the amount of bytes set in setFifoThreshold or not.
+    */
+    bool isFifoLevel();
+
+    /*!
+      \brief Query the IRQ flags for the FIFO_EMPTY bit.
+      \returns Whether the fifo is empty or not.
+    */
+    bool isFifoEmpty();
+
+    /*!
       \brief Set interrupt service routine function to call when FIFO is empty.
       \param data Pointer to the transmission buffer.
       \param totalLen Total number of bytes to transmit.

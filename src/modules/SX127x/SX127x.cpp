@@ -462,6 +462,34 @@ void SX127x::errataFix(bool rx) {
   // should be implemented in derived class
 }
 
+bool SX127x::isFifoLevel() {
+  // LoRa mode: 1 byte, FSK/OOK mode: 2 bytes
+  uint16_t flags = this->getIRQFlags();
+
+  int16_t modem = getActiveModem();
+  if(modem == RADIOLIB_SX127X_LORA) {
+    return flags & RADIOLIB_SX127X_FLAG_FIFO_LEVEL;
+  } else if(modem == RADIOLIB_SX127X_FSK_OOK) {
+    return flags & (RADIOLIB_SX127X_FLAG_FIFO_LEVEL << 8);
+  }
+
+  return(RADIOLIB_ERR_WRONG_MODEM);
+}
+
+bool SX127x::isFifoEmpty() {
+  // LoRa mode: 1 byte, FSK/OOK mode: 2 bytes
+  uint16_t flags = this->getIRQFlags();
+
+  int16_t modem = getActiveModem();
+  if(modem == RADIOLIB_SX127X_LORA) {
+    return flags & RADIOLIB_SX127X_FLAG_FIFO_EMPTY;
+  } else if(modem == RADIOLIB_SX127X_FSK_OOK) {
+    return flags & (RADIOLIB_SX127X_FLAG_FIFO_EMPTY << 8);
+  }
+
+  return(RADIOLIB_ERR_WRONG_MODEM);
+}
+
 bool SX127x::fifoAdd(uint8_t* data, int totalLen, int* remLen) {
   // subtract first (this may be the first time we get to modify the remaining length)
   *remLen -= RADIOLIB_SX127X_FIFO_THRESH - 1;
