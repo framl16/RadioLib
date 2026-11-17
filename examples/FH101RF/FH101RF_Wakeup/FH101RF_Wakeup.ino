@@ -5,6 +5,9 @@
   The FH101RF then generates an IRQ signal.
   Both chips are connected to a single ESP32 MCU.
   This example was tested on a LilyGO TTGO 2.1.6 board.
+  
+  The transmission is done via directly modulating the
+  signals on the DIO2 pin of the SX1276 module.
 
   For full API reference, see the GitHub Pages
   https://jgromes.github.io/RadioLib/
