@@ -52,19 +52,12 @@ void wakeup(uint16_t id, uint8_t* data, uint8_t length) {
     memcpy(payload + 2, data, length);
   }
 
-  // calculate delays
-  uint16_t delaySlow = FH101RF::getSymbolDuration(FH101RF_SPEED_LDR);
-  uint16_t delayFast = FH101RF::getSymbolDuration(FH101RF_SPEED_HDR);
+  uint16_t modulationLength = FH101RF::getModulationLength(FH101RF_SPEED_LDR, FH101RF_SPEED_HDR, payloadLength);
+  uint8_t modulation[modulationLength] = {0};
+  FH101RF::getModulation(FH101RF_SPEED_LDR, FH101RF_SPEED_HDR, RADIOLIB_FH101RF_CODE_MLS_A, RADIOLIB_FH101RF_CODE_MLS_B, payload, payloadLength, modulation);
 
-  // prepare preamble modulation
-  uint16_t symbolsPreamble = RADIOLIB_FH101RF_SYMBOL_SIZE;
-  uint8_t modulationPreamble[symbolsPreamble] = {0};
-  FH101RF::getModulationForPreamble(RADIOLIB_FH101RF_CODE_MLS_A, modulationPreamble);
-
-  // prepare payload modulation
-  uint16_t symbolsPayload = RADIOLIB_FH101RF_SYMBOL_SIZE * RADIOLIB_FH101RF_SYMBOLS_PER_BYTE * payloadLength;
-  uint8_t modulationPayload[symbolsPayload] = {0};
-  FH101RF::getModulationForPayload(RADIOLIB_FH101RF_CODE_MLS_A, RADIOLIB_FH101RF_CODE_MLS_B, payload, modulationPayload, payloadLength);
+  // calculate delay
+  uint16_t delayMicros = FH101RF::getSymbolDuration(FH101RF_SPEED_HDR);
 
   // activate direct mode transmitter
   Serial.println("Starting transmission.");
@@ -74,19 +67,12 @@ void wakeup(uint16_t id, uint8_t* data, uint8_t length) {
     Serial.println(state);
   }
 
-  // send preamble symbols
-  for(int i = 0; i < symbolsPreamble; i++) {
-    digitalWrite(SX1276_PIN_DIO2, modulationPreamble[i]);
-    delayMicroseconds(delaySlow);
-  }
-
-  digitalWrite(SX1276_PIN_DIO2, LOW);
-  delay(5);
-
-  // send payload symbols
-  for(int i = 0; i < symbolsPayload; i++) {
-    digitalWrite(SX1276_PIN_DIO2, modulationPayload[i]);
-    delayMicroseconds(delayFast);
+  // modulate the symbols
+  for(int i = 0; i < modulationLength; i++) {
+    for(int j = 7; j >= 0; j--) {
+      digitalWrite(SX1276_PIN_DIO2, (modulation[i] >> j) & 0b1);
+      delayMicroseconds(delayMicros);
+    }
   }
 
   Serial.println("Ending transmission.");
