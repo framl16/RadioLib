@@ -412,7 +412,7 @@ void FH101RF::getModulation(uint8_t ldr, uint8_t hdr, uint8_t patternOne, uint8_
 
 uint16_t FH101RF::getModulationLength(uint8_t ldr, uint8_t hdr, uint8_t payloadLength) {
   uint8_t multiplier = getModulationMultiplier(ldr, hdr);
-  return RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES * multiplier + RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES * payloadLength;
+  return RADIOLIB_FH101RF_SYMBOL_SIZE_BYTES * (multiplier + RADIOLIB_FH101RF_SYMBOLS_PER_PAYLOAD_BYTE * payloadLength) + 1;
 }
 
 uint8_t FH101RF::getModulationMultiplier(uint8_t ldr, uint8_t hdr) {
